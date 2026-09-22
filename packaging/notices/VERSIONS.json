@@ -1,0 +1,13 @@
+{
+  "python": "3.14.2 (v3.14.2:df793163d58, Dec  5 2025, 12:18:06) [Clang 16.0.0 (clang-1600.0.26.6)]",
+  "numpy": "2.5.3",
+  "scipy": "1.18.1",
+  "pyinstaller": "6.22.3",
+  "pyinstaller-hooks-contrib": "2026.7",
+  "pyobjc-core": "12.2.2",
+  "pyobjc-framework-Cocoa": "12.2.2",
+  "altgraph": "0.17.5",
+  "macholib": "1.16.4",
+  "packaging": "26.3",
+  "setuptools": "84.0.0"
+}

@@ -1,0 +1,5 @@
+pyinstaller==6.22.3
+numpy==2.5.3
+scipy==1.18.1
+pyobjc-core==12.2.2
+pyobjc-framework-Cocoa==12.2.2

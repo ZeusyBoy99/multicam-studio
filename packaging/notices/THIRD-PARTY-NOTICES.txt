@@ -1,0 +1,18 @@
+Multicam Studio bundles independent runtime components.
+
+Python: Python Software Foundation license; see Python-LICENSE.txt.
+NumPy and SciPy: BSD licenses and bundled-library notices in their directories.
+PyObjC: MIT license; see pyobjc-core and pyobjc-framework-Cocoa directories.
+PyInstaller bootloader: GPL with a distribution exception permitting bundled apps;
+see the included PyInstaller license and exception text.
+FFmpeg 9.0.1 with libx264: GPL version 2 or later, because GPL components are enabled.
+x264 source revision b35605ace3ddf7c1a5d67a2eb553f034aef41d55: GPL version 2 or later.
+
+FFmpeg and x264 are separate executables invoked as subprocesses. The exact source
+archives and build instructions are distributed with this release in the matching
+Multicam-Studio-1.1.0-Sources.zip. Redistribute that archive alongside the binaries.
+It also contains the Multicam Studio source files used for this build.
+
+Official sources: https://ffmpeg.org/ and https://code.videolan.org/videolan/x264
+Build source checksums are included in the source archive. Third-party notices do
+not change the copyright or license of the original application source.

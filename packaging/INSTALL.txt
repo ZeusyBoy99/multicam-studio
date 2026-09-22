@@ -1,0 +1,29 @@
+Multicam Studio 1.1
+
+1. Drag Multicam Studio.app to Applications.
+2. Open Multicam Studio from Applications.
+3. Complete the setup page: choose your recordings and export/work folders.
+
+Python, NumPy, SciPy, FFmpeg and FFprobe are included. No Terminal, Homebrew,
+pip installation, or internet connection is required for editing.
+
+Use the app's Open Multicam Studio menu to reopen the browser workspace.
+Use Quit in the app menu or Settings. Finish/cancel a running render first.
+
+Architecture and operating system
+This package is labeled arm64 (Apple silicon) or x86_64 (Intel). Choose the
+package for your Mac. Requires macOS 14 Sonoma or newer. Older OS releases
+are not supported by these bundled numerical-library builds.
+
+This development build is ad-hoc signed, not Developer ID signed or notarized.
+When sharing it to another Mac, Gatekeeper may block it. For a build you trust,
+use macOS System Settings > Privacy & Security > Open Anyway after opening it.
+Do not disable Gatekeeper globally. A public release should be Developer ID
+signed and notarized using the release instructions before wide distribution.
+
+Settings/job records: ~/Library/Application Support/Multicam Studio
+Desktop log: ~/Library/Logs/Multicam Studio/desktop.log
+Your recordings and exports stay in folders you select.
+
+The Sources ZIP contains the exact FFmpeg/x264 source archives, their notices,
+and the build recipe. Keep it with this binary distribution when redistributing.
