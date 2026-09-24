@@ -35,7 +35,7 @@ from urllib.parse import parse_qs, urlparse, quote
 import webbrowser
 
 APP = Path(__file__).resolve().parent
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 APP_ID = 'com.multicamstudio.desktop'
 DISCONNECTS = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, TimeoutError)
 _RUNNING_SERVER = None
@@ -325,6 +325,11 @@ class Studio:
                     if outputs.get(key):
                         item=self.register(outputs[key],kind)
                         if item: artifacts.append(item)
+                for clip in outputs.get('videos',[]):
+                    item=self.register(clip['path'],'video')
+                    if item:
+                        item.update(source_path=clip['path'],start=clip.get('start'),end=clip.get('end'))
+                        artifacts.append(item)
                 for preview in outputs.get('previews',[]):
                     item=self.register(preview['path'],'image')
                     if item:
@@ -341,7 +346,7 @@ class Studio:
         if kind=='edit':config=validate_config(raw)
         else:
             import effects
-            config=effects.validate_config(raw)
+            config=effects.validate_batch(raw) if kind=='highlights' else effects.validate_config(raw)
         
         with self.lock:
             if self.stopping:raise ValueError('Multicam Studio is closing. Reopen it before starting another job.')
@@ -379,6 +384,8 @@ class Studio:
                         if match:
                             n,total=map(int,match.groups())
                             job.update(stage=f'Rendering shot {n} of {total}',progress=round((n-1)/total*95,1))
+                        elif line.startswith('Batch clip '):
+                            job.update(stage=line,progress=job.get('progress'))
                         elif 'Concatenating' in line:
                             job.update(stage='Assembling video and audio',progress=97)
                         elif line.startswith('duration_seconds='):
@@ -655,6 +662,8 @@ class Handler(BaseHTTPRequestHandler):
                 target.mkdir()
                 return self.json_response(201,{'path':str(target),'name':name})
             if u.path=='/api/jobs':return self.json_response(201,{'id':self.studio.start(data)})
+            if u.path=='/api/highlights/export':
+                return self.json_response(201,{'id':self.studio.start(data,'highlights')})
             if u.path in ('/api/clips','/api/effects'):
                 if u.path=='/api/clips':
                     data={**data,'fade_in':0,'fade_out':0,'bounce':0,'style':'none','brightness':0,'contrast':1,'saturation':1,'vignette':False,'preview':False}
@@ -750,12 +759,11 @@ class Handler(BaseHTTPRequestHandler):
         path=resolved(data.get('path'))
         if not path.is_file() or path.suffix.lower() not in VIDEO_EXTS|AUDIO_EXTS:raise ValueError('Choose a WAV bounce or rendered video.')
         folder=self.studio.state/'waveforms';folder.mkdir(exist_ok=True)
-        stat=path.stat();key=hashlib.sha256(f'v3:{path}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()
+        stat=path.stat();key=hashlib.sha256(f'v4:{path}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()
         cached=folder/(key+'.json')
         if cached.exists():result=json.loads(cached.read_text())
         else:
             import numpy as np
-            from scipy.ndimage import uniform_filter1d
             pcm=folder/(key+'-'+secrets.token_hex(4)+'.f32')
             try:
                 proc=subprocess.run(['ffmpeg','-v','error','-nostdin','-y','-i',str(path),'-map','0:a:0','-vn','-ac','1','-ar','8000','-c:a','pcm_f32le','-f','f32le',str(pcm)],capture_output=True,text=True,timeout=300)
@@ -773,29 +781,13 @@ class Handler(BaseHTTPRequestHandler):
                 values=np.array([np.sqrt(np.mean(np.nan_to_num(np.asarray(samples[a:min(b,len(samples))]))**2)) if a<len(samples) else 0 for a,b in zip(edges,edges[1:])])
                 maximum=float(np.max(values))
                 peaks=(values/max(maximum,1e-9)).clip(0,1)
-                smooth=uniform_filter1d(values,size=max(1,round(3/duration*count)))
-                threshold=float(np.quantile(smooth,.75));energetic=[]
-                if maximum>1e-6 and np.ptp(smooth)>1e-5:
-                    mask=smooth>=threshold;changes=np.diff(np.r_[False,mask,False].astype(int))
-                    for a,b in zip(np.flatnonzero(changes==1),np.flatnonzero(changes==-1)):
-                        start=max(0,a/count*duration-2);end=min(duration,b/count*duration+2)
-                        if end-start<4:continue
-                        # Cap long plateaus to usable short highlights.
-                        end=min(end,start+45)
-                        energetic.append({'start':round(start,3),'end':round(end,3),'score':round(float(np.mean(smooth[a:b])/max(maximum,1e-9)),3)})
-                    # Adjacent threshold crossings may describe the same musical moment.
-                    # Keep the strongest candidate in each overlapping neighbourhood.
-                    distinct=[]
-                    for candidate in sorted(energetic,key=lambda x:x['score'],reverse=True):
-                        if any(candidate['start'] < chosen['end']+2 and candidate['end']+2 > chosen['start'] for chosen in distinct):
-                            continue
-                        distinct.append(candidate)
-                        if len(distinct)==20:break
-                    energetic=sorted(distinct,key=lambda x:x['start'])
-                result={'duration':duration,'sample_rate':8000,'peaks':[round(float(x),5) for x in peaks],'energetic':energetic}
+                result={'duration':duration,'sample_rate':8000,'peaks':[round(float(x),5) for x in peaks],'maximum':maximum}
                 temporary=cached.with_name(key+'-'+secrets.token_hex(4)+'.tmp');temporary.write_text(json.dumps(result));temporary.replace(cached)
                 del samples
             finally:pcm.unlink(missing_ok=True)
+        from highlights import plan_clips
+        result['energetic']=plan_clips(result['peaks'],result['duration'],data.get('target_seconds',30),result['maximum'])
+        result['target_seconds']=float(data.get('target_seconds',30))
         result['audio_url']=self.studio.register(path,'audio')['url']
         return self.json_response(200,result)
 
